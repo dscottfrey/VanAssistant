@@ -61,7 +61,7 @@ sensor:
     attenuation: 12db
     filters:
       - multiply: 2.0
-      - heartbeat: 60s
+
     update_interval: never # FIXED: No more background polling
 
 text_sensor:
