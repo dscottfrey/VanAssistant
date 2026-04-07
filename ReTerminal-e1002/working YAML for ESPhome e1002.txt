@@ -56,12 +56,13 @@ binary_sensor:
 sensor:
   - platform: adc
     pin: GPIO1
+    id: raw_battery_voltage # Added ID here
     name: "Battery Voltage"
     attenuation: 12db
     filters:
       - multiply: 2.0
       - heartbeat: 60s
-    update_interval: 60s
+    update_interval: never # Changed to NEVER to prevent sag readings
 
 text_sensor:
   - platform: template
@@ -127,6 +128,9 @@ script:
   - id: fetch_dashboard
     mode: restart
     then:
+      - logger.log: "Updating Battery while system is idle..."
+      - component.update: raw_battery_voltage # FIX: Measure BEFORE WiFi kicks in
+      - delay: 200ms
       - logger.log: "Starting Fetch Sequence..."
       - wait_until:
           condition: wifi.connected
