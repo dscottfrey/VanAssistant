@@ -1,0 +1,178 @@
+esphome:
+  name: reterminal-e1002
+  on_boot:
+    - priority: 600 
+      then:
+        - switch.turn_on: sd_enable_switch
+        - switch.turn_on: battery_enable_switch
+        - light.turn_on: onboard_led
+    - priority: -100
+      then:
+        - delay: 5s 
+        - script.execute: fetch_dashboard
+
+esp32:
+  board: esp32-s3-devkitc-1
+  framework:
+    type: esp-idf
+
+safe_mode:
+  num_attempts: 10
+  reboot_timeout: 5min
+
+psram:
+  mode: octal
+  speed: 80MHz
+
+# --- 1. HARDWARE ---
+switch:
+  - platform: gpio
+    pin: GPIO16
+    id: sd_enable_switch
+    restore_mode: ALWAYS_ON
+  - platform: gpio
+    pin: GPIO21
+    id: battery_enable_switch
+    restore_mode: ALWAYS_ON
+
+light:
+  - platform: status_led
+    pin: GPIO6
+    id: onboard_led
+
+binary_sensor:
+  - platform: gpio
+    pin: GPIO43
+    id: usb_power_sensor
+    name: "USB Power Connected"
+    on_press:
+      then:
+        - logger.log: "USB Power Restored. Refreshing Dashboard..."
+        - script.execute: fetch_dashboard
+    on_release:
+      then:
+        - script.execute: shutdown_sequence
+
+sensor:
+  - platform: adc
+    pin: GPIO1
+    name: "Battery Voltage"
+    attenuation: 12db
+    filters:
+      - multiply: 2.0
+      - heartbeat: 60s
+    update_interval: 60s
+
+text_sensor:
+  - platform: template
+    name: "reTerminal Compiled At"
+    id: compiled_at_sensor
+    lambda: 'return {"Version: " + std::string(__DATE__) + " " + std::string(__TIME__)};'
+    update_interval: never
+
+# --- 2. IMAGE PIPELINE ---
+http_request:
+  useragent: esphome/e1002
+  timeout: 120s
+
+online_image:
+  - id: puppet_dashboard
+    url: "http://192.168.8.2:10000/dashboard-rtermianal/0?viewport=800x480&colors=ffffff,000000,ff0000,ffff00,00ff00,0000ff,ffa500"
+    format: png
+    type: RGB565
+    buffer_size: 65536
+    update_interval: never
+    on_download_finished:
+      then:
+        - component.update: epaper_display
+        - script.execute: shutdown_sequence
+
+# --- 3. DISPLAY ---
+spi:
+  clk_pin: GPIO7
+  mosi_pin: GPIO9
+
+display:
+  - platform: epaper_spi
+    id: epaper_display
+    model: Seeed-reTerminal-E1002
+    cs_pin: GPIO10
+    dc_pin: GPIO11
+    reset_pin: GPIO12
+    busy_pin:
+      number: GPIO13
+      inverted: true
+    update_interval: never
+    lambda: |-
+      if (id(puppet_dashboard).is_ready()) {
+        it.image(0, 0, id(puppet_dashboard));
+      }
+
+# --- 4. LOGIC & SLEEP ---
+deep_sleep:
+  id: deep_sleep_control
+  sleep_duration: 15min
+
+interval:
+  - interval: 15min
+    then:
+      - if:
+          condition:
+            binary_sensor.is_on: usb_power_sensor
+          then:
+            - logger.log: "USB Mode: Interval Refresh."
+            - script.execute: fetch_dashboard
+
+script:
+  - id: fetch_dashboard
+    mode: restart
+    then:
+      - logger.log: "Starting Fetch Sequence..."
+      - wait_until:
+          condition: wifi.connected
+          timeout: 45s 
+      - if:
+          condition: wifi.connected
+          then:
+            - component.update: puppet_dashboard
+          else:
+            - logger.log: "WiFi failed, skipping update."
+
+  - id: shutdown_sequence
+    mode: restart
+    then:
+      - logger.log: "Shutdown check initiated..."
+      - delay: 90s 
+      - if:
+          condition:
+            binary_sensor.is_off: usb_power_sensor
+          then:
+            - logger.log: "Battery Mode: Entering Deep Sleep."
+            - deep_sleep.enter: deep_sleep_control
+          else:
+            - logger.log: "USB Mode detected within buffer. Staying awake."
+
+# --- 5. SYSTEM ---
+button:
+  - platform: restart
+    id: restart_node
+    name: "Restart Device"
+
+logger:
+  level: DEBUG
+
+api:
+  encryption:
+    key: "LoC3vuVcRXCtJCmOsh78E8iVbLP+jZYFkXwq5Mw9KVo="
+
+ota:
+  - platform: esphome
+
+wifi:
+  ssid: !secret wifi_ssid
+  password: !secret wifi_password
+  manual_ip:
+    static_ip: 192.168.8.3
+    gateway: 192.168.8.1
+    subnet: 255.255.255.0
+  reboot_timeout: 90s

@@ -1,0 +1,155 @@
+views:
+  - type: sections
+    sections:
+      - type: grid
+        cards:
+          - type: heading
+            heading: Temp and humidity
+            heading_style: title
+          - type: vertical-stack
+            cards:
+              - type: grid
+                square: false
+                columns: 2
+                cards:
+                  - type: custom:mushroom-entity-card
+                    entity: sensor.alpstuga_air_quality_monitor_temperature
+                    primary_info: state
+                    secondary_info: name
+                    name: Indoor Temperature
+                    icon_color: '#06bfeb'
+                    icon: mdi:home
+                    card_mod:
+                      style: |
+                        ha-card {
+                          box-shadow: none;
+                          border: none;
+                        }
+                  - type: custom:mushroom-entity-card
+                    entity: sensor.h5074_0726_temperature
+                    primary_info: state
+                    secondary_info: name
+                    name: Outdoor Temperature
+                    icon_color: '#7CFC00'
+                    icon: mdi:weather-sunny
+                    card_mod:
+                      style: |
+                        ha-card {
+                          box-shadow: none;
+                          border: none;
+                  - type: custom:mushroom-entity-card
+                    entity: sensor.alpstuga_air_quality_monitor_humidity
+                    primary_info: state
+                    secondary_info: name
+                    name: Indoor Humidity
+                    icon_color: '#06bfeb'
+                    icon: mdi:home
+                    card_mod:
+                      style: |
+                        ha-card {
+                          box-shadow: none;
+                          border: none;
+                        }
+                  - type: custom:mushroom-entity-card
+                    entity: sensor.h5074_0726_humidity
+                    primary_info: state
+                    secondary_info: name
+                    name: Outdoor Humidity
+                    icon_color: '#7CFC00'
+                    icon: mdi:weather-sunny
+                    card_mod:
+                      style: |
+                        ha-card {
+                          box-shadow: none;
+                          border: none;
+                        }
+          - type: gauge
+            entity: sensor.indoor_air_quality_index
+            name: Synthetic AQI (estimate)
+            needle: true
+            min: 0
+            max: 300
+            unit: ' '
+            segments:
+              - from: 0
+                color: '#004d00'
+              - from: 51
+                color: '#ffff00'
+              - from: 101
+                color: '#ff7e00'
+              - from: 151
+                color: '#ff0000'
+              - from: 201
+                color: '#8f3f97'
+              - from: 301
+                color: '#7e0023'
+            grid_options:
+              columns: 6
+              rows: auto
+          - type: gauge
+            entity: sensor.van_co2_clean
+            name: Carbon Dioxide (CO₂) ppm
+            needle: true
+            min: 350
+            max: 10000
+            unit: ' '
+            segments:
+              - from: 350
+                color: '#004d00'
+              - from: 2000
+                color: '#ffff00'
+              - from: 5000
+                color: '#ff0000'
+              - from: 9998
+                color: '#ff0000'
+              - from: 9999
+                color: '#ff0000'
+            grid_options:
+              columns: 6
+              rows: auto
+          - type: tile
+            entity: sensor.h5074_06fb_temperature
+            name: Hanger Deck temp
+            vertical: false
+            features_position: bottom
+          - type: tile
+            entity: sensor.h5074_0725_temperature
+            name: Fridge Temperature
+            vertical: false
+            features_position: bottom
+      - type: grid
+        cards:
+          - type: conditional
+            conditions:
+              - condition: numeric_state
+                entity: sensor.alpstuga_air_quality_monitor_carbon_dioxide
+                above: 900
+            card:
+              type: markdown
+              content: >
+                # ⚠️ VENTILATE NOW
+
+                ## CO₂ levels are high. Turn on the fan.
+
+
+                ***
+
+                *Last check: {{ now().strftime('%I:%M %p') }}*
+
+                *Alert active since: {{
+                states.sensor.alpstuga_air_quality_monitor_carbon_dioxide.last_changed.strftime('%I:%M
+                %p') }}*
+          - type: heading
+            heading: 'Time last updated:'
+            heading_style: title
+          - type: clock
+            grid_options:
+              columns: 3
+              rows: 1
+          - type: entities
+            entities:
+              - entity: sensor.van_dashboard_battery_percent
+                name: Batt.
+            grid_options:
+              columns: 6
+              rows: auto

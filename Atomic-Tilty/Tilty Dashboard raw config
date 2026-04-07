@@ -1,0 +1,81 @@
+views:
+  - title: Tilty
+    path: tilty
+    icon: mdi:image-filter-hdr
+    type: sections
+    max_columns: 2
+    sections:
+      - type: grid
+        cards:
+          - type: picture
+            image: /local/images/tilty_header.png
+            tap_action:
+              action: none
+            hold_action:
+              action: none
+          - type: gauge
+            entity: sensor.tilty_van_pitch
+            name:
+              - type: text
+                text: ↓ tail -
+              - type: text
+                text: Pitch
+              - type: text
+                text: '- nose ↓'
+            unit: °
+            needle: true
+            layout_options:
+              grid_columns: 2
+              grid_rows: auto
+            min: -10
+            max: 10
+            segments:
+              - from: -20
+                color: '#d62b37'
+              - from: -4
+                color: '#fabe30'
+              - from: -1.5
+                color: cadetblue
+              - from: 1.5
+                color: '#fabe30'
+              - from: 4
+                color: '#d62b37'
+            severity:
+              green: 0
+              yellow: 0
+              red: 0
+          - type: gauge
+            entity: sensor.tilty_van_roll
+            min: -10
+            max: 10
+            name:
+              - type: text
+                text: ↓ driver -
+              - type: text
+                text: Roll
+              - type: text
+                text: '- pass ↓'
+            unit: °
+            segments:
+              - from: -20
+                color: '#d62b37'
+              - from: -4
+                color: '#fabe30'
+              - from: -1.5
+                color: cadetblue
+              - from: 1.5
+                color: '#fabe30'
+              - from: 4
+                color: '#d62b37'
+            layout_options:
+              grid_columns: 2
+              grid_rows: auto
+            needle: true
+          - type: custom:mushroom-template-card
+            entity: binary_sensor.tilty_van_level
+            primary: Van is Level
+            secondary: '{{ ''Yes'' if is_state(entity, ''on'') else ''No'' }}'
+            icon: >-
+              {{ 'mdi:check-circle' if is_state(entity, 'on') else
+              'mdi:alert-circle' }}
+            icon_color: '{{ ''green'' if is_state(entity, ''on'') else ''red'' }}'

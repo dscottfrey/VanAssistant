@@ -1,0 +1,531 @@
+substitutions:
+  devicename: tilty
+  upper_devicename: Tilty
+
+globals:
+  ########################
+  ## USER CONFIGURATION ##
+  ########################
+  # Wheel base in inches - distance between front and rear axles
+  - id: wheelbase_in
+    type: float
+    restore_value: no
+    initial_value: '147.6' 
+  # Track width in inches - distance between left and right wheels
+  - id: track_in
+    type: float
+    restore_value: no
+    initial_value: '68.2'
+  # Total number of available blocks
+  - id: max_available_blocks
+    type: int
+    restore_value: no
+    initial_value: '8'
+  # Number of blocks per set (if your blocks are connected to each other)
+  # For individual blocks use '1'
+  - id: total_blocks_per_set
+    type: int
+    restore_value: no
+    initial_value: '4'
+  # Height of one block in inches
+  - id: block_height_in
+    type: float
+    restore_value: no
+    initial_value: '0.825'
+  # Tolerance for level in degrees – consider vehicle level if pitch/roll is ± this value
+  - id: level_tolerance
+    type: float
+    restore_value: no
+    initial_value: '1.5'
+  #####################
+  
+  - id: bubble_x
+    type: float
+    restore_value: no
+    initial_value: '64'
+  - id: bubble_y
+    type: float
+    restore_value: no
+    initial_value: '64'
+  - id: bubble_x_target
+    type: float
+    restore_value: no
+    initial_value: '64'
+  - id: bubble_y_target
+    type: float
+    restore_value: no
+    initial_value: '64' 
+  - id: pitch_offset
+    type: float
+    restore_value: yes # Remembers calibration after power loss
+    initial_value: '0.0'
+  - id: roll_offset
+    type: float
+    restore_value: yes
+    initial_value: '0.0'
+    
+
+esphome:
+  name: tilty
+  friendly_name: Tilty
+  platformio_options:
+    upload_speed: 460800
+  on_boot:
+    - priority: 600
+      then:
+        - delay: 1s  # Let hardware stabilize
+            
+esp32:
+  board: esp32-s3-devkitc-1
+  framework:
+    type: arduino
+
+wifi:
+  ssid: !secret wifi_ssid
+  password: !secret wifi_password
+  ap:
+    ssid: $devicename Fallback Hotspot
+    password: !secret wifi_password
+
+mdns:
+  # disabled: true
+
+captive_portal:
+
+
+logger:
+  level: DEBUG
+  logs:
+    mpu6886: WARN
+    display: ERROR
+    sensor: WARN
+    binary_sensor: WARN
+
+api:
+  on_client_connected:
+    - logger.log: "HA Connected"
+  on_client_disconnected:
+    - logger.log: "HA Disconnected"
+          
+ota:
+  - platform: esphome
+    password: ota
+
+
+
+spi:
+  id: spi_bus
+  clk_pin: GPIO17    # SCK
+  mosi_pin: GPIO21   # MOSI
+  
+  
+i2c:
+  - id: bus_a
+    sda: GPIO38
+    scl: GPIO39
+    scan: true
+
+
+    
+sensor:
+  - platform: mpu6886
+    i2c_id: bus_a
+    address: 0x68
+    update_interval: 50ms
+    accel_x:
+      id: accel_x
+      internal: true
+      filters:
+        - sliding_window_moving_average:
+            window_size: 5
+            send_every: 1
+        - delta: 0.2
+    accel_y:
+      id: accel_y
+      internal: true
+      filters:
+        - sliding_window_moving_average:
+            window_size: 5
+            send_every: 1
+        - delta: 0.2
+    accel_z:
+      id: accel_z
+      internal: true
+      filters:
+        - sliding_window_moving_average:
+            window_size: 5
+            send_every: 1
+        - delta: 0.2
+
+  ## BUBBLE PITCH AND ROLL
+  - platform: template
+    name: "Bubble Pitch"
+    id: bubble_pitch
+    internal: true
+    update_interval: 50ms
+    lambda: |-
+      float y = id(accel_y).state;
+      float z = id(accel_z).state;
+      return atan2(y, sqrt(id(accel_x).state * id(accel_x).state + z * z)) * (180.0 / M_PI);
+
+  - platform: template
+    name: "Bubble Roll"
+    id: bubble_roll
+    internal: true
+    update_interval: 50ms
+    lambda: |-
+      float x = id(accel_x).state;
+      float z = id(accel_z).state;
+      return atan2(x, sqrt(id(accel_y).state * id(accel_y).state + z * z)) * (180.0 / M_PI);
+
+  ## VAN PITCH AND ROLL
+  - platform: template
+    name: "Van Pitch"
+    id: van_pitch
+    lambda: |-
+      return -id(bubble_pitch).state - id(pitch_offset);
+    update_interval: 500ms
+    icon: mdi:axis-arrow
+    unit_of_measurement: "°"
+    filters:
+      - sliding_window_moving_average:
+          window_size: 5
+          send_every: 1
+
+  - platform: template
+    name: "Van Roll"
+    id: van_roll
+    lambda: |-
+      return -id(bubble_roll).state - id(roll_offset);
+    update_interval: 500ms
+    icon: mdi:axis-arrow
+    unit_of_measurement: "°"
+    filters:
+      - sliding_window_moving_average:
+          window_size: 5
+          send_every: 1
+
+  ## LIFT IN INCHES
+  - platform: template
+    name: "Lift Front Left"
+    id: lift_fl
+    unit_of_measurement: "in"
+    accuracy_decimals: 1
+    icon: mdi:ruler
+    update_interval: 50ms
+    filters:
+      - sliding_window_moving_average:
+          window_size: 40
+          send_every: 40    
+    lambda: |-
+      float pitch_rad = id(bubble_pitch).state * (M_PI / 180.0f);
+      float roll_rad  = id(bubble_roll).state  * (M_PI / 180.0f);
+      float pitch_lift = (id(wheelbase_in) / 2.0f) * tanf(pitch_rad);
+      float roll_lift  = (id(track_in) / 2.0f) * tanf(roll_rad);
+      float lift = -pitch_lift + roll_lift;
+      return lift > 0.0f ? lift : 0.0f;
+
+  - platform: template
+    name: "Lift Front Right"
+    id: lift_fr
+    unit_of_measurement: "in"
+    accuracy_decimals: 1
+    icon: mdi:ruler
+    update_interval: 50ms
+    filters:
+      - sliding_window_moving_average:
+          window_size: 40
+          send_every: 40  
+    lambda: |-
+      float pitch_rad = id(bubble_pitch).state * (M_PI / 180.0f);
+      float roll_rad  = id(bubble_roll).state  * (M_PI / 180.0f);
+      float pitch_lift = (id(wheelbase_in) / 2.0f) * tanf(pitch_rad);
+      float roll_lift  = (id(track_in) / 2.0f) * tanf(roll_rad);
+      float lift = -pitch_lift - roll_lift;
+      return lift > 0.0f ? lift : 0.0f;
+
+  - platform: template
+    name: "Lift Rear Right"
+    id: lift_rr
+    unit_of_measurement: "in"
+    accuracy_decimals: 1
+    icon: mdi:ruler
+    update_interval: 50ms
+    filters:
+      - sliding_window_moving_average:
+          window_size: 40
+          send_every: 40  
+    lambda: |-
+      float pitch_rad = id(bubble_pitch).state * (M_PI / 180.0f);
+      float roll_rad  = id(bubble_roll).state  * (M_PI / 180.0f);
+      float pitch_lift = (id(wheelbase_in) / 2.0f) * tanf(pitch_rad);
+      float roll_lift  = (id(track_in) / 2.0f) * tanf(roll_rad);
+      float lift = pitch_lift - roll_lift;
+      return lift > 0.0f ? lift : 0.0f;
+
+  - platform: template
+    name: "Lift Rear Left"
+    id: lift_rl
+    unit_of_measurement: "in"
+    accuracy_decimals: 1
+    icon: mdi:ruler
+    update_interval: 50ms
+    filters:
+      - sliding_window_moving_average:
+          window_size: 40
+          send_every: 40  
+    lambda: |-
+      float pitch_rad = id(bubble_pitch).state * (M_PI / 180.0f);
+      float roll_rad  = id(bubble_roll).state  * (M_PI / 180.0f);
+      float pitch_lift = (id(wheelbase_in) / 2.0f) * tanf(pitch_rad);
+      float roll_lift  = (id(track_in) / 2.0f) * tanf(roll_rad);
+      float lift = pitch_lift + roll_lift;
+      return lift > 0.0f ? lift : 0.0f;
+
+  # BLOCK RECOMMENDATIONS
+  - platform: template
+    name: "Blocks Rear Left"
+    id: block_rl
+    icon: mdi:pan-bottom-left
+    unit_of_measurement: "blk"
+    accuracy_decimals: 0
+    update_interval: never
+    filters:
+      - sliding_window_moving_average:
+          window_size: 40
+          send_every: 40
+
+  - platform: template
+    name: "Blocks Rear Right"
+    id: block_rr
+    icon: mdi:pan-bottom-right
+    unit_of_measurement: "blk"
+    accuracy_decimals: 0
+    update_interval: never
+    filters:
+      - sliding_window_moving_average:
+          window_size: 40
+          send_every: 40
+
+  - platform: template
+    name: "Blocks Front Left"
+    id: block_fl
+    icon: mdi:pan-top-left
+    unit_of_measurement: "blk"
+    accuracy_decimals: 0
+    update_interval: never
+    filters:
+      - sliding_window_moving_average:
+          window_size: 40
+          send_every: 40
+
+  - platform: template
+    name: "Blocks Front Right"
+    id: block_fr
+    icon: mdi:pan-top-right
+    unit_of_measurement: "blk"
+    accuracy_decimals: 0
+    update_interval: never
+    filters:
+      - sliding_window_moving_average:
+          window_size: 40
+          send_every: 40
+
+
+interval:
+  - interval: 50ms
+    then:
+      - lambda: |-
+          // DISPLAY
+
+          // --- Bubble display parameters ---
+          const int bubble_r = 8;
+          const int screen_w = 128;
+          const int screen_h = 128;
+          const float max_ang = 45.0f; // for bubble display
+
+          // --- Bubble display logic ---
+          float roll_disp  = id(bubble_roll).state;
+          float pitch_disp = id(bubble_pitch).state;
+          pitch_disp = -pitch_disp; // Invert Y for spirit level effect
+
+          roll_disp  = fmaxf(fminf(roll_disp, max_ang), -max_ang);
+          pitch_disp = fmaxf(fminf(pitch_disp, max_ang), -max_ang);
+
+          float norm_roll  = (roll_disp  + max_ang) / (2 * max_ang);
+          float norm_pitch = (pitch_disp + max_ang) / (2 * max_ang);
+         
+          // Target position math that keeps the bubble inside the glass
+          id(bubble_x_target) = (norm_roll  * (screen_w - 2 * bubble_r)) + bubble_r;
+          id(bubble_y_target) = (norm_pitch * (screen_h - 2 * bubble_r)) + bubble_r;
+
+          // Smoothly move bubble_x/y toward bubble_x_target/y_target
+          const float alpha = 0.05;
+          id(bubble_x) = id(bubble_x) + alpha * (id(bubble_x_target) - id(bubble_x));
+          id(bubble_y) = id(bubble_y) + alpha * (id(bubble_y_target) - id(bubble_y));
+
+          
+          
+          // BLOCK & LIFT CALCULATIONS
+
+          // Block calculation logic using lift in inches
+          float lift_in[4];
+          lift_in[0] = id(lift_fl).state;
+          lift_in[1] = id(lift_fr).state;
+          lift_in[2] = id(lift_rr).state;
+          lift_in[3] = id(lift_rl).state;
+
+          const float tol = 0.2f;
+          int blocks_per_set = id(total_blocks_per_set);
+          int num_sets = id(max_available_blocks) / blocks_per_set;
+          float block_height = id(block_height_in);
+
+          // Calculate needed blocks for each wheel
+          int blk_needed[4];
+          for (int i = 0; i < 4; i++) {
+            if (fabsf(lift_in[i]) < tol) {
+              blk_needed[i] = 0;
+            } else {
+              int b = (int)ceilf(fabsf(lift_in[i]) / block_height);
+              blk_needed[i] = (b < 0 ? 0 : b);
+            }
+          }
+
+          // Track and asign sets of blocks to wheels (-1 = unassigned)
+          int best[4] = {0, 0, 0, 0};
+          int set_assignment[num_sets];
+          for (int i = 0; i < num_sets; i++) set_assignment[i] = -1;
+
+          // Sort wheels by need (descending)
+          int idx[4] = {0, 1, 2, 3};
+          for (int i = 0; i < 3; i++) {
+            for (int j = i + 1; j < 4; j++) {
+              if (blk_needed[idx[j]] > blk_needed[idx[i]]) {
+                int tmp = idx[i];
+                idx[i] = idx[j];
+                idx[j] = tmp;
+              }
+            }
+          }
+
+          // Round robin assignment of sets to wheels with remaining need
+          int blocks_needed[4];
+          for (int i = 0; i < 4; i++) blocks_needed[i] = blk_needed[i];
+
+          int sets_left = num_sets;
+          while (sets_left > 0) {
+            // Find all wheels with the current max remaining need
+            int max_need = 0;
+            for (int i = 0; i < 4; i++) {
+              if (blocks_needed[i] > max_need) max_need = blocks_needed[i];
+            }
+            if (max_need == 0) break; // All needs satisfied
+
+            // Assign one set to each wheel with max need, in round robin
+            for (int k = 0; k < 4 && sets_left > 0; k++) {
+              int i = idx[k];
+              if (blocks_needed[i] == max_need && blocks_needed[i] > 0) {
+                int use = (blocks_needed[i] > blocks_per_set) ? blocks_per_set : blocks_needed[i];
+                best[i] += use;
+                blocks_needed[i] -= use;
+                sets_left--;
+                if (sets_left == 0) break;
+              }
+            }
+          }
+
+          // publish to sensors
+          id(block_fl).publish_state(best[0]);
+          id(block_fr).publish_state(best[1]);
+          id(block_rr).publish_state(best[2]);
+          id(block_rl).publish_state(best[3]);
+   
+font:
+  - file:
+      type: gfonts
+      family: Roboto
+      weight: 900
+    id: roboto_large
+    size: 28
+    bpp: 4
+  - file:
+      type: gfonts
+      family: Roboto
+      weight: 900
+    id: roboto
+    size: 16
+    bpp: 4
+  - file:
+      type: gfonts
+      family: Roboto
+      weight: 200
+    id: roboto_small
+    size: 14
+
+
+
+display:
+  - platform: st7789v
+    model: CUSTOM
+    rotation: 0°
+    spi_id: spi_bus
+    backlight_pin: GPIO16
+    cs_pin: GPIO15
+    dc_pin: GPIO33
+    reset_pin: GPIO34
+    width: 128
+    height: 128
+    offset_width: 1
+    offset_height: 2
+    eightbitcolor: true
+    id: main_display
+    update_interval: 100ms
+
+    lambda: |-
+      it.fill(Color(0,0,0));
+      // Header - Centered
+      it.printf(64, 2, id(roboto_small), Color(255,255,255), TextAlign::TOP_CENTER, "SMARTY TILTY");
+      
+      // Left Column (FL and RL)
+      it.printf(2, 80, id(roboto_small), Color(255,255,255), "FL:%.1f %d", id(lift_fl).state, (int)id(block_fl).state);
+      it.printf(2, 96, id(roboto_small), Color(255,255,255), "RL:%.1f %d", id(lift_rl).state, (int)id(block_rl).state);
+      
+      // Right Column (FR and RR)
+      it.printf(126, 80, id(roboto_small), Color(255,255,255), TextAlign::TOP_RIGHT, "FR:%.1f %d", id(lift_fr).state, (int)id(block_fr).state);
+      it.printf(126, 96, id(roboto_small), Color(255,255,255), TextAlign::TOP_RIGHT, "RR:%.1f %d", id(lift_rr).state, (int)id(block_rr).state);
+
+      // The Bubble (uses the globals smoothed in Change 4)
+      it.filled_circle(id(bubble_x), id(bubble_y), 8, Color(255,0,0));
+      
+
+
+binary_sensor:
+  - platform: template
+    name: "Van Level"
+    id: van_level
+    filters:
+      - delayed_on_off: 2s
+    lambda: |-
+      return fabs(id(van_roll).state) < id(level_tolerance) && 
+             fabs(id(van_pitch).state) < id(level_tolerance);
+  - platform: gpio
+    pin:
+      number: GPIO41
+      inverted: true
+    name: "${upper_devicename} Screen Button"
+    on_press:
+      then:
+        - button.press: calibrate_button
+
+button:
+  - platform: template
+    name: "${upper_devicename} Calibrate Level"
+    id: calibrate_button
+    icon: "mdi:shutter-recoil"
+    on_press:
+      then:
+        - lambda: |-
+            id(pitch_offset) = -id(bubble_pitch).state;
+            id(roll_offset) = -id(bubble_roll).state;
+            ESP_LOGI("calib", "New Offsets - Pitch: %.2f, Roll: %.2f", id(pitch_offset), id(roll_offset));
+            
