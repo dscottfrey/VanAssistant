@@ -3,66 +3,387 @@ views:
     sections:
       - type: grid
         cards:
-          - type: heading
-            heading: Temp and humidity
-            heading_style: title
-          - type: vertical-stack
+          - type: horizontal-stack
             cards:
-              - type: grid
-                square: false
-                columns: 2
-                cards:
-                  - type: custom:mushroom-entity-card
-                    entity: sensor.alpstuga_air_quality_monitor_temperature
-                    primary_info: state
-                    secondary_info: name
-                    name: Indoor Temperature
-                    icon_color: '#06bfeb'
-                    icon: mdi:home
-                    card_mod:
-                      style: |
-                        ha-card {
-                          box-shadow: none;
-                          border: none;
-                        }
-                  - type: custom:mushroom-entity-card
-                    entity: sensor.h5074_0726_temperature
-                    primary_info: state
-                    secondary_info: name
-                    name: Outdoor Temperature
-                    icon_color: '#7CFC00'
-                    icon: mdi:weather-sunny
-                    card_mod:
-                      style: |
-                        ha-card {
-                          box-shadow: none;
-                          border: none;
-                  - type: custom:mushroom-entity-card
-                    entity: sensor.alpstuga_air_quality_monitor_humidity
-                    primary_info: state
-                    secondary_info: name
-                    name: Indoor Humidity
-                    icon_color: '#06bfeb'
-                    icon: mdi:home
-                    card_mod:
-                      style: |
-                        ha-card {
-                          box-shadow: none;
-                          border: none;
-                        }
-                  - type: custom:mushroom-entity-card
-                    entity: sensor.h5074_0726_humidity
-                    primary_info: state
-                    secondary_info: name
-                    name: Outdoor Humidity
-                    icon_color: '#7CFC00'
-                    icon: mdi:weather-sunny
-                    card_mod:
-                      style: |
-                        ha-card {
-                          box-shadow: none;
-                          border: none;
-                        }
+              - type: custom:button-card
+                entity: sensor.alpstuga_air_quality_monitor_temperature
+                name: Indoor
+                show_state: true
+                show_icon: true
+                state_display: '[[[ return parseInt(entity.state) ]]]'
+                custom_fields:
+                  hum: |
+                    [[[ 
+                      return `<ha-icon icon="mdi:water-percent" style="width: 22px; vertical-align: middle; color: #00008B;"></ha-icon> 
+                      ${parseInt(states['sensor.alpstuga_air_quality_monitor_humidity'].state)}%` 
+                    ]]]
+                styles:
+                  card:
+                    - border: none
+                    - box-shadow: none
+                    - background: transparent
+                    - padding: 10px
+                  grid:
+                    - grid-template-areas: '"i s" "hum hum" "n n"'
+                    - grid-template-columns: 1fr 2fr
+                    - grid-template-rows: 1fr min-content min-content
+                  state:
+                    - font-size: 72px
+                    - font-weight: 900
+                    - justify-self: start
+                    - line-height: 0.9
+                    - color: black
+                  icon:
+                    - width: 38px
+                    - color: '#00008B'
+                    - justify-self: end
+                    - padding-right: 5px
+                  custom_fields:
+                    hum:
+                      - font-size: 26px
+                      - font-weight: 700
+                      - justify-self: center
+                      - padding-top: 5px
+                      - color: black
+                  name:
+                    - font-size: 16px
+                    - text-transform: uppercase
+                    - justify-self: center
+                    - font-weight: 900
+                    - color: '#00008B'
+              - type: custom:button-card
+                entity: sensor.h5074_0726_temperature
+                name: Outdoor
+                show_state: true
+                show_icon: true
+                state_display: '[[[ return parseInt(entity.state) ]]]'
+                custom_fields:
+                  hum: |
+                    [[[ 
+                      return `<ha-icon icon="mdi:water-percent" style="width: 22px; vertical-align: middle; color: #004d00;"></ha-icon> 
+                      ${parseInt(states['sensor.h5074_0726_humidity'].state)}%` 
+                    ]]]
+                styles:
+                  card:
+                    - border: none
+                    - box-shadow: none
+                    - background: transparent
+                    - padding: 10px
+                  grid:
+                    - grid-template-areas: '"i s" "hum hum" "n n"'
+                    - grid-template-columns: 1fr 2fr
+                    - grid-template-rows: 1fr min-content min-content
+                  state:
+                    - font-size: 72px
+                    - font-weight: 900
+                    - justify-self: start
+                    - line-height: 0.9
+                    - color: black
+                  icon:
+                    - width: 38px
+                    - color: '#004d00'
+                    - justify-self: end
+                    - padding-right: 5px
+                  custom_fields:
+                    hum:
+                      - font-size: 26px
+                      - font-weight: 700
+                      - justify-self: center
+                      - padding-top: 5px
+                      - color: black
+                  name:
+                    - font-size: 16px
+                    - text-transform: uppercase
+                    - justify-self: center
+                    - font-weight: 900
+                    - color: '#004d00'
+          - type: horizontal-stack
+            cards:
+              - type: custom:button-card
+                name: null
+                styles:
+                  card:
+                    - border: none
+                    - box-shadow: none
+                    - background: transparent
+                    - padding: 10px
+                  grid:
+                    - grid-template-areas: '"n n" "high_val high_lbl" "low_val low_lbl"'
+                    - grid-template-columns: 1fr 1.5fr
+                    - grid-template-rows: min-content 1fr 1fr
+                  name:
+                    - font-size: 18px
+                    - text-transform: uppercase
+                    - justify-self: center
+                    - font-weight: 900
+                    - color: '#00008B'
+                    - padding-bottom: 5px
+                  custom_fields:
+                    high_val:
+                      - font-size: 32px
+                      - font-weight: 900
+                      - justify-self: end
+                      - padding-right: 5px
+                      - color: black
+                    high_lbl:
+                      - font-size: 24px
+                      - font-weight: 700
+                      - justify-self: start
+                      - align-self: center
+                      - color: '#00008B'
+                    low_val:
+                      - font-size: 32px
+                      - font-weight: 900
+                      - justify-self: end
+                      - padding-right: 5px
+                      - color: black
+                    low_lbl:
+                      - font-size: 24px
+                      - font-weight: 700
+                      - justify-self: start
+                      - align-self: center
+                      - color: '#00008B'
+                custom_fields:
+                  high_val: >-
+                    [[[ return parseInt(states['sensor.va_inside_high'].state)
+                    ]]]
+                  high_lbl: ↑ High
+                  low_val: >-
+                    [[[ return parseInt(states['sensor.va_inside_low'].state)
+                    ]]]
+                  low_lbl: ↓ Low
+              - type: custom:button-card
+                name: null
+                styles:
+                  card:
+                    - border: none
+                    - box-shadow: none
+                    - background: transparent
+                    - padding: 10px
+                  grid:
+                    - grid-template-areas: '"n n" "high_val high_lbl" "low_val low_lbl"'
+                    - grid-template-columns: 1fr 1.5fr
+                    - grid-template-rows: min-content 1fr 1fr
+                  name:
+                    - font-size: 18px
+                    - text-transform: uppercase
+                    - justify-self: center
+                    - font-weight: 900
+                    - color: '#004d00'
+                    - padding-bottom: 5px
+                  custom_fields:
+                    high_val:
+                      - font-size: 32px
+                      - font-weight: 900
+                      - justify-self: end
+                      - padding-right: 5px
+                      - color: black
+                    high_lbl:
+                      - font-size: 24px
+                      - font-weight: 700
+                      - justify-self: start
+                      - align-self: center
+                      - color: '#004d00'
+                    low_val:
+                      - font-size: 32px
+                      - font-weight: 900
+                      - justify-self: end
+                      - padding-right: 5px
+                      - color: black
+                    low_lbl:
+                      - font-size: 24px
+                      - font-weight: 700
+                      - justify-self: start
+                      - align-self: center
+                      - color: '#004d00'
+                custom_fields:
+                  high_val: >-
+                    [[[ return parseInt(states['sensor.va_outside_high'].state)
+                    ]]]
+                  high_lbl: ↑ High
+                  low_val: >-
+                    [[[ return parseInt(states['sensor.va_outside_low'].state)
+                    ]]]
+                  low_lbl: ↓ Low
+          - type: horizontal-stack
+            cards:
+              - type: custom:button-card
+                entity: sensor.h5074_06fb_temperature
+                name: >-
+                  [[[ return entity.state <= 36 ? 'WATER: FREEZE DANGER' :
+                  'WATER SYSTEM' ]]]
+                show_state: true
+                show_icon: true
+                state_display: '[[[ return entity ? parseInt(entity.state) : ''?'' ]]]'
+                state:
+                  - operator: <=
+                    value: 36
+                    styles:
+                      card:
+                        - background-color: '#FFFF00'
+                styles:
+                  card:
+                    - height: 60px
+                    - border: 1px solid "#eeeeee"
+                    - background-color: white
+                  grid:
+                    - grid-template-areas: '"i s" "n n"'
+                    - grid-template-columns: 45% 1fr
+                    - grid-template-rows: 1fr min-content
+                  state:
+                    - font-size: 28px
+                    - font-weight: 900
+                    - justify-self: start
+                  icon:
+                    - width: 22px
+                    - justify-self: end
+                    - padding-right: 2px
+                    - color: black
+                  name:
+                    - font-size: 14px
+                    - font-weight: 900
+                    - text-transform: uppercase
+                    - justify-self: center
+                    - color: black
+                    - opacity: 1
+              - type: custom:button-card
+                entity: sensor.h5074_0725_temperature
+                name: >-
+                  [[[ return entity.state > 40 ? 'FRIDGE: TOO WARM' :
+                  entity.state < 32 ? 'FRIDGE: TOO COLD' : 'FRIDGE' ]]]
+                show_state: true
+                show_icon: true
+                state_display: '[[[ return entity ? parseInt(entity.state) : ''?'' ]]]'
+                state:
+                  - operator: '>'
+                    value: 40
+                    styles:
+                      card:
+                        - background-color: '#FFFF00'
+                  - operator: <
+                    value: 32
+                    styles:
+                      card:
+                        - background-color: '#FFFF00'
+                styles:
+                  card:
+                    - height: 60px
+                    - border: 1px solid "#eeeeee"
+                    - background-color: white
+                  grid:
+                    - grid-template-areas: '"i s" "n n"'
+                    - grid-template-columns: 45% 1fr
+                    - grid-template-rows: 1fr min-content
+                  state:
+                    - font-size: 28px
+                    - font-weight: 900
+                    - justify-self: start
+                  icon:
+                    - width: 22px
+                    - justify-self: end
+                    - padding-right: 2px
+                    - color: black
+                  name:
+                    - font-size: 14px
+                    - font-weight: 900
+                    - text-transform: uppercase
+                    - justify-self: center
+                    - color: black
+                    - opacity: 1
+          - type: heading
+            icon: mdi:tablet-dashboard
+            heading: Screen Status
+            heading_style: title
+          - type: horizontal-stack
+            cards:
+              - type: custom:button-card
+                entity: sensor.time
+                name: (Last Updated)
+                show_state: true
+                show_icon: true
+                state_display: '[[[ return entity.state ]]]'
+                styles:
+                  card:
+                    - border: none
+                    - box-shadow: none
+                    - background: transparent
+                    - padding: 10px
+                  grid:
+                    - grid-template-areas: '"i s" "n n"'
+                    - grid-template-columns: 1fr 2fr
+                    - grid-template-rows: 1fr min-content
+                  state:
+                    - font-size: 24px
+                    - font-weight: 500
+                    - justify-self: start
+                    - line-height: 0.9
+                    - color: black
+                  icon:
+                    - width: 28px
+                    - color: black
+                    - justify-self: end
+                    - padding-right: 5px
+                  name:
+                    - font-size: 14px
+                    - text-transform: uppercase
+                    - justify-self: center
+                    - font-weight: 500
+                    - color: black
+              - type: custom:button-card
+                entity: sensor.van_dashboard_battery_percent
+                name: (Screen Battery)
+                show_state: true
+                show_icon: true
+                state_display: '[[[ return parseInt(entity.state) + ''%'' ]]]'
+                styles:
+                  card:
+                    - border: none
+                    - box-shadow: none
+                    - background: transparent
+                    - padding: 10px
+                  grid:
+                    - grid-template-areas: '"i s" "n n"'
+                    - grid-template-columns: 1fr 2fr
+                    - grid-template-rows: 1fr min-content
+                  state:
+                    - font-size: 24px
+                    - font-weight: 500
+                    - justify-self: start
+                    - line-height: 0.9
+                    - color: black
+                  icon:
+                    - width: 28px
+                    - color: black
+                    - justify-self: end
+                    - padding-right: 5px
+                  name:
+                    - font-size: 14px
+                    - text-transform: uppercase
+                    - justify-self: center
+                    - font-weight: 500
+                    - color: black
+      - type: grid
+        cards:
+          - type: conditional
+            conditions:
+              - condition: numeric_state
+                entity: sensor.alpstuga_air_quality_monitor_carbon_dioxide
+                above: 900
+            card:
+              type: markdown
+              content: >
+                # ⚠️ VENTILATE NOW
+
+                ## CO₂ levels are high. Turn on the fan.
+
+
+                ***
+
+                *Last check: {{ now().strftime('%I:%M %p') }}*
+
+                *Alert active since: {{
+                states.sensor.alpstuga_air_quality_monitor_carbon_dioxide.last_changed.strftime('%I:%M
+                %p') }}*
           - type: gauge
             entity: sensor.indoor_air_quality_index
             name: Synthetic AQI (estimate)
@@ -88,7 +409,7 @@ views:
               rows: auto
           - type: gauge
             entity: sensor.van_co2_clean
-            name: Carbon Dioxide (CO₂) ppm
+            name: Carbon Dioxide (CO2) ppm
             needle: true
             min: 350
             max: 10000
@@ -104,52 +425,6 @@ views:
                 color: '#ff0000'
               - from: 9999
                 color: '#ff0000'
-            grid_options:
-              columns: 6
-              rows: auto
-          - type: tile
-            entity: sensor.h5074_06fb_temperature
-            name: Hanger Deck temp
-            vertical: false
-            features_position: bottom
-          - type: tile
-            entity: sensor.h5074_0725_temperature
-            name: Fridge Temperature
-            vertical: false
-            features_position: bottom
-      - type: grid
-        cards:
-          - type: conditional
-            conditions:
-              - condition: numeric_state
-                entity: sensor.alpstuga_air_quality_monitor_carbon_dioxide
-                above: 900
-            card:
-              type: markdown
-              content: >
-                # ⚠️ VENTILATE NOW
-
-                ## CO₂ levels are high. Turn on the fan.
-
-
-                ***
-
-                *Last check: {{ now().strftime('%I:%M %p') }}*
-
-                *Alert active since: {{
-                states.sensor.alpstuga_air_quality_monitor_carbon_dioxide.last_changed.strftime('%I:%M
-                %p') }}*
-          - type: heading
-            heading: 'Time last updated:'
-            heading_style: title
-          - type: clock
-            grid_options:
-              columns: 3
-              rows: 1
-          - type: entities
-            entities:
-              - entity: sensor.van_dashboard_battery_percent
-                name: Batt.
             grid_options:
               columns: 6
               rows: auto
